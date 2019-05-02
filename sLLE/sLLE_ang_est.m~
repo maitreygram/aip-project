@@ -7,41 +7,72 @@ function [ord_idx] = sLLE_ang_est(projections,epsilon)
 %% Fourier Transform of Each Projection
 FTprojections = zeros(N,P);
 for i = 1:N
-    FTprojections(i,:) = fft(projections(i,:));
+    FTprojections(i,:) = abs(fft(projections(i,:)));
 end
 %% Construction of Weight Matrix
+% 
+weights = load('W_360.mat');
+W = weights.W;
 
-W = zeros(N,N);
+% W = zeros(N,N);
 
-for i = 1:N
-    for j = i:N
-        W(i,j) = exp(-norm(FTprojections(i,:) - FTprojections(j,:))/(2*epsilon));
-        W(j,i) = W(i,j);
-    end
-end
 
+
+% for i = 1:N
+%     k = 15;
+%     Idx = knnsearch(FTprojections,FTprojections(i,:),'K',k);
+%     Idx(1) = [];
+%     cvx_begin quiet
+%         variable w(k-1)
+%         minimize(norm(FTprojections(i,:) - w'*FTprojections(Idx,:)))
+%         subject to 
+%             sum(w) == 1
+%     cvx_end
+%     
+%     W(i,Idx) = w;
+% end
+
+
+
+% for i = 1:N
+%     for j = i+1:N
+%         W(i,j) = exp(-norm(FTprojections(i,:) - FTprojections(j,:))^2/(2*epsilon));
+%         W(j,i) = W(i,j);
+%     end
+% end
+% 
+% % implement equation 8b given in paper  
+% W  = W./sum(W,2);
 %% Dimensionality reduction goes here
 
 temp_mat = eye(N)- W;
 M = temp_mat' * temp_mat;
 Y = zeros(N,2);
 B = eye(N);
-while True
+
+% break_err  = 0.1;
+itr = 0;
+while true
 %     Y STEP: min tr(Y'MY) s.t. Y'BY = I
-    [V,D] = eig(B\M);
-    [~,idx] = sort(diag(D),'descend');
-    Y = V(:,idx(1:2));   
+    Y_temp = Y;
+    [V,D] = eig(M,B);
+    [~,idx] = sort(diag(real(D)));
+    Y = real(V(:,idx(1:2)));
+%     Y(:,1) = V(:,1);
+%     Y(:,2) = V(:,2);
 
 %     B STEP: sqrt(B)YY'sqrt(B) all diag elem = 1
     B_temp = B;
     for i = 1:N
+        
         B(i,i) = 1/(Y(i,:)*Y(i,:)');
     end
-    
-    if norm(B_temp -B) < break_err
+%     fprintf('Error in B = %d\n',norm(B_temp - B));
+    fprintf('Error in Y = %d   Error in B = %d\n',norm(Y_temp - Y,'fro'),norm(B_temp - B,'fro'));
+    itr = itr + 1;
+    if itr > 1000
         break;
     end
-    
 end
 
 % Final Embeddings
@@ -49,10 +80,10 @@ Z = sqrt(B)*Y;
 
 ini_ang = zeros(N,1);
 for i = 1:N
-    ini_ang(i) = atan(Z(i,2)/Z(i,1));
+    ini_ang(i) = atand(Z(i,2)/Z(i,1));
 end
 
-[~,ord_idx] = sort(ini_ang)
+[~,ord_idx] = sort(ini_ang);
 
 end
 
