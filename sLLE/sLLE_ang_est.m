@@ -16,23 +16,34 @@ end
 
 W = zeros(N,N);
 
+% for i = 1:N
+%     k = 150;
+%     tempPro = FTprojections;
+%     tempPro(i,:) = [];
+%     Idx = knnsearch(tempPro,FTprojections(i,:),'K',k);
+% %     Idx(1) = [];
+%     cvx_begin quiet
+%         variable w(1,k)
+%         minimize(norm(FTprojections(i,:) - w*tempPro(Idx,:)))
+%         subject to 
+%             sum(w) == 1
+%     cvx_end
+%     
+%     q = find(Idx >= i);
+%     Idx(q) = Idx(q) + 1;
+%     W(i,Idx) = w;
+% end
+
 for i = 1:N
     k = 60;
-    tempPro = FTprojections;
-    tempPro(i,:) = [];
-    Idx = knnsearch(tempPro,FTprojections(i,:),'K',k);
-%     Idx(1) = [];
-    cvx_begin quiet
-        variable w(k)
-        minimize(norm(FTprojections(i,:) - w'*tempPro(Idx,:)))
-        subject to 
-            sum(w) == 1
-    cvx_end
-    
-    q = find(Idx >= i);
-    Idx(q) = Idx(q) + 1;
-    W(i,Idx) = w;
+    idx = knnsearch(FTprojections,FTprojections(i,:),'K',k);
+    idx(1) = [];
+    vec = FTprojections(idx,:) - FTprojections(i,:);
+    C = vec*vec';
+    C_inv = inv(C);
+    W(i,idx) = sum(C_inv)/sum(sum(C_inv));
 end
+
 
 % epsilon = 10^6;
 % 
@@ -58,7 +69,7 @@ while true
 %     Y STEP: min tr(Y'MY) s.t. Y'BY = I
     Y_temp = Y;
     [V,D] = eig(B\M);
-    [~,idx] = sort(diag(real(D)));
+    [~,idx] = sort(diag(abs(real(D))));
     Y = real(V(:,idx(1:2)));
 %     Y(:,1) = V(:,1);
 %     Y(:,2) = V(:,2);

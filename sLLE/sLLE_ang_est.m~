@@ -1,4 +1,4 @@
-function [ord_idx] = sLLE_ang_est(projections,epsilon)
+function [ord_idx] = sLLE_ang_est(projections)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 [N,P] = size(projections);
@@ -10,37 +10,50 @@ for i = 1:N
     FTprojections(i,:) = abs(fft(projections(i,:)));
 end
 %% Construction of Weight Matrix
-% 
-weights = load('W_360.mat');
-W = weights.W;
 
-% W = zeros(N,N);
+% weights = load('sLLE_360_rand.mat');
+% W = weights.W; 
 
+W = zeros(N,N);
 
-
-% for i = 1:N
-%     k = 15;
-%     Idx = knnsearch(FTprojections,FTprojections(i,:),'K',k);
+for i = 1:N
+    k = 150;
+    tempPro = FTprojections;
+    tempPro(i,:) = [];
+    Idx = knnsearch(tempPro,FTprojections(i,:),'K',k);
 %     Idx(1) = [];
-%     cvx_begin quiet
-%         variable w(k-1)
-%         minimize(norm(FTprojections(i,:) - w'*FTprojections(Idx,:)))
-%         subject to 
-%             sum(w) == 1
-%     cvx_end
-%     
-%     W(i,Idx) = w;
-% end
+    cvx_begin quiet
+        variable w(1,k)
+        minimize(norm(FTprojections(i,:) - w*tempPro(Idx,:)))
+        subject to 
+            sum(w) == 1
+    cvx_end
+    
+    q = find(Idx >= i);
+    Idx(q) = Idx(q) + 1;
+    W(i,Idx) = w;
+end
+
+for i = 1:N
+    k = 60;
+    idx = knnsearch(FTprojections,FTprojections(i,:),'K',k);
+    idx(1) = [];
+    vec = FTprojections(idx,:) - FTprojections(i,:);
+    C = vec*vec';
+    C_inv = inv(C);
+    W(i,idx) = sum(C_inv)/sum
+end
 
 
-
+% epsilon = 10^6;
+% 
 % for i = 1:N
 %     for j = i+1:N
 %         W(i,j) = exp(-norm(FTprojections(i,:) - FTprojections(j,:))^2/(2*epsilon));
 %         W(j,i) = W(i,j);
 %     end
 % end
-% 
+
 % % implement equation 8b given in paper  
 % W  = W./sum(W,2);
 %% Dimensionality reduction goes here
@@ -55,8 +68,8 @@ itr = 0;
 while true
 %     Y STEP: min tr(Y'MY) s.t. Y'BY = I
     Y_temp = Y;
-    [V,D] = eig(M,B);
-    [~,idx] = sort(diag(real(D)));
+    [V,D] = eig(B\M);
+    [~,idx] = sort(diag(abs(real(D))));
     Y = real(V(:,idx(1:2)));
 %     Y(:,1) = V(:,1);
 %     Y(:,2) = V(:,2);
@@ -70,7 +83,7 @@ while true
 %     fprintf('Error in B = %d\n',norm(B_temp - B));
     fprintf('Error in Y = %d   Error in B = %d\n',norm(Y_temp - Y,'fro'),norm(B_temp - B,'fro'));
     itr = itr + 1;
-    if itr > 1000
+    if itr > 100
         break;
     end
 end
@@ -80,7 +93,7 @@ Z = sqrt(B)*Y;
 
 ini_ang = zeros(N,1);
 for i = 1:N
-    ini_ang(i) = atand(Z(i,2)/Z(i,1));
+    ini_ang(i) = atan2d(Z(i,2),Z(i,1));
 end
 
 [~,ord_idx] = sort(ini_ang);

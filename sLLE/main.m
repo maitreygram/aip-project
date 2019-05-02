@@ -7,9 +7,9 @@ imshow(P)
 
 % Get projections
 numAngles = 360;
-angles = rand(numAngles,1) * 360; % random angles
+% angles = rand(numAngles,1) * 360; % random angles
 % angles = randperm(numAngles)*360/numAngles;
-% angles = (1:numAngles)*360/numAngles;
+angles = (1:numAngles)*180/numAngles;
 % past = load('sLLE_360_rand.mat');
 % angles = past.angles;
 
@@ -20,7 +20,7 @@ R = radon(P, angles);
 
 order = sLLE_ang_est(R');
 
-uni_ang = (1:numAngles)*360/numAngles;
+uni_ang = (1:numAngles)*180/numAngles;
 recons_P = iradon(R(:,order),uni_ang,'Ram-Lak');
 recons_P = recons_P(2:end-1,2:end-1);
 % show result
